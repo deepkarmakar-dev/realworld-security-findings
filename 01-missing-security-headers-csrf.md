@@ -1,4 +1,4 @@
-Security Finding — Educational Institution Websites
+Target: Two Educational Institution Websites (India)
 
 Researcher: Deep Karmakar
 Assessment Type: Passive Security Review
