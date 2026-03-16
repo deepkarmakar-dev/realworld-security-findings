@@ -1,91 +1,143 @@
-Passive Security Findings Report
-
-Missing Security Headers, Unprotected Search Form & Outdated jQuery
-
-Author: Deep Karmakar
-Assessment Type: Passive Security Review
-Method: Browser source inspection + public scanning tools
-Testing Type: Non-intrusive (No exploitation performed)
-Date: March 2026
-Status: Pending Responsible Disclosure
+# Missing Security Headers, Unprotected Search Form & Outdated jQuery
+### Passive Security Finding — Educational Institution Websites (India)
 
 ---
 
-Finding 1 — Missing HTTP Security Headers
+| Field | Details |
+|---|---|
+| **Author** | Deep Karmakar |
+| **Target** | Two Educational Institution Websites (India) |
+| **Assessment Type** | Passive Security Review |
+| **Method** | Browser source inspection + public scanning tools |
+| **Testing Type** | Non-intrusive — no exploitation performed |
+| **Date** | March 2026 |
+| **Status** | Pending Responsible Disclosure |
 
-Description
+---
 
-During passive analysis of the target websites, HTTP response headers were inspected using the public scanning tool SecurityHeaders.com.
+## Finding 1 — Missing HTTP Security Headers
 
-The scan returned a Grade F, indicating that several recommended security headers are missing. These headers are important for enabling browser-side security protections and reducing the risk of common web attacks.
+During passive review, both websites were scanned using [securityheaders.com](https://securityheaders.com) and received a **Grade F** — indicating all six recommended security headers are absent.
 
-Missing Security Headers
+### Missing Headers
 
-Header| Risk
-X-Frame-Options| Allows clickjacking attacks by embedding the site inside attacker-controlled iframes
-Content-Security-Policy| No browser-level protection against Cross-Site Scripting (XSS)
-Strict-Transport-Security| Users may be vulnerable to HTTPS downgrade or man-in-the-middle attacks
-X-Content-Type-Options| Allows MIME-type sniffing attacks
-Referrer-Policy| Sensitive URL information may leak to third-party websites
-Permissions-Policy| Browser features such as camera, microphone, or location may be abused
+| Header | Risk |
+|---|---|
+| `X-Frame-Options` | Clickjacking — site can be embedded in attacker iframe |
+| `Content-Security-Policy` | No browser-level XSS mitigation |
+| `Strict-Transport-Security` | HTTPS downgrade / MITM possible |
+| `X-Content-Type-Options` | MIME sniffing attacks |
+| `Referrer-Policy` | Sensitive URL data leaks to third parties |
+| `Permissions-Policy` | Unauthorized camera / mic / location access |
 
-Impact
+### Impact
 
-The absence of these headers weakens browser security controls.
+The missing `X-Frame-Options` header is a standalone exploitable misconfiguration — no other vulnerability required. An attacker can embed the site in a hidden iframe and overlay fake UI elements to trick students into submitting credentials or fee payments to a malicious page.
 
-For example, without the X-Frame-Options header, an attacker could embed the website inside a malicious iframe and trick users into clicking hidden elements. This technique, known as Clickjacking, could potentially lead to credential theft, unauthorized actions, or phishing attacks targeting students or staff.
+### Recommended Fix
 
-Recommended Fix
-
-Implement the following security headers on all HTTP responses:
-
+```apache
 Header always set X-Frame-Options "SAMEORIGIN"
 Header always set X-Content-Type-Options "nosniff"
 Header always set Referrer-Policy "strict-origin-when-cross-origin"
 Header always set Content-Security-Policy "default-src 'self'; object-src 'none';"
 Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+```
 
 ---
 
-Finding 2 — Search Form Using GET Method
+## Finding 2 — Search Form Using GET Without CSRF Protection
 
-Description
+The website search form uses the `GET` method with no CSRF token present.
 
-During source code inspection, the website search functionality was found to use the GET method without any request validation or token protection.
-
-Example form:
-
+```html
 <form method="GET" action="en.php">
     <input name="linktitle" placeholder="Search...">
     <input type="submit" value="Search">
 </form>
+```
 
-Risk
+### Risk
 
-Using the GET method for search functionality exposes user input in multiple locations:
+- Search queries exposed in browser history, server logs, and referrer headers
+- No token validation — requests can be triggered from external pages
+- Parameter directly reflected in URL, increasing attack surface
 
-- Browser history
-- Server logs
-- Referrer headers
-- URL sharing
+### Recommended Fix
 
-This increases the risk of sensitive information exposure and may expand the attack surface for injection vulnerabilities if the parameter is improperly handled by the backend.
-
-Impact
-
-User-supplied search queries are directly appended to the URL. If not properly sanitized on the server side, this could potentially lead to reflected input vulnerabilities or information leakage through logs and analytics systems.
-
-Recommended Fix
-
-Use POST requests and implement proper input validation:
-
+```html
 <form method="POST" action="/search">
+    @csrf
     <input name="query" placeholder="Search...">
     <button type="submit">Search</button>
 </form>
+```
 
-Additionally, ensure server-side validation and sanitization of all user input.
+---
+
+## Finding 3 — Outdated jQuery (v1.11.0) with Known CVEs
+
+Confirmed via [Wappalyzer](https://wappalyzer.com) — a passive technology fingerprinting tool.
+
+```
+Detected: jQuery 1.11.0
+Latest stable: jQuery 3.7.1
+```
+
+### Applicable CVEs
+
+| CVE | CVSS | Type | Description |
+|---|---|---|---|
+| CVE-2020-11023 | 6.9 | XSS | Passing HTML to DOM manipulation methods can execute untrusted code |
+| CVE-2020-11022 | 6.9 | XSS | XSS via HTML string parsing in `.html()` and related methods |
+| CVE-2019-11358 | 6.1 | Prototype Pollution | `jQuery.extend()` allows `__proto__` pollution |
+| CVE-2015-9251 | 6.1 | XSS | Cross-domain AJAX requests with `text/javascript` auto-execute |
+
+### Impact
+
+jQuery 1.11.0 is affected by 4 publicly documented CVEs. While exploitation depends on how jQuery is used in the application code, the library itself is a known vulnerable dependency — any code using `.html()`, `$.extend()`, or cross-domain AJAX with user-controlled input is at direct risk.
+
+### Recommended Fix
+
+```html
+<!-- Replace outdated version -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha384-1H217gwSVyLSIfaLxHbE7dRb3v4mYCKbpQvzx0cegeju1MVsGrX5xXxAvs/HgeFs"
+        crossorigin="anonymous"></script>
+```
+
+---
+
+## Tools Used
+
+| Tool | Purpose |
+|---|---|
+| Browser Developer Tools | HTML source review |
+| [securityheaders.com](https://securityheaders.com) | HTTP header analysis |
+| [Wappalyzer](https://wappalyzer.com) | Technology fingerprinting |
+
+---
+
+## Summary
+
+| # | Finding | Severity | Exploitable Without Auth |
+|---|---|---|---|
+| 1 | Missing HTTP Security Headers | High | Yes (Clickjacking) |
+| 2 | No CSRF Token on Search Form | Medium | Yes |
+| 3 | Outdated jQuery 1.11.0 (4 CVEs) | Medium | Conditional |
+
+---
+
+## Note
+
+This was a passive security observation only.  
+No exploitation was attempted and no data was accessed.  
+Findings will be reported to the respective institutions via responsible disclosure.
+
+---
+
+*Deep Karmakar — AppSec Learning Journey 🔐*
 
 ---
 
