@@ -1,6 +1,6 @@
 Target: Two Educational Institution Websites (India)
 
-Researcher: Deep Karmakar
+Author: Deep Karmakar
 Assessment Type: Passive Security Review
 Method: Browser source inspection + securityheaders.com scan
 Testing Type: Non-intrusive (no exploitation performed)
